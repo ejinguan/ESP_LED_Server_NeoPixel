@@ -451,6 +451,7 @@ void loop(void) {
 
 
 // From: http://blog.saikoled.com/post/43693602826/why-every-led-light-should-be-using-hsi
+// Code also  from: http://fourier.eng.hmc.edu/e161/lectures/ColorProcessing/node3.html
 //
 // Function example takes H, S, I, and a pointer to the 
 // returned RGB colorspace converted vector. It should
@@ -465,7 +466,7 @@ void loop(void) {
 // S: 0-1
 // I: 0-1
 void hsi2rgb(float H, float S, float I, int* rgb) {
-  int r, g, b;
+  float r, g, b;
   while(H < 0) {
     H += 360; // Add to positive if H < 0
   }
@@ -473,26 +474,34 @@ void hsi2rgb(float H, float S, float I, int* rgb) {
   H = 3.14159*H/(float)180; // Convert to radians.
   S = S>0?(S<1?S:1):0; // clamp S and I to interval [0,1]
   I = I>0?(I<1?I:1):0;
+
+  if (S==0)
+    rgb[0]=rgb[1]=rgb[2]=I*255;
+  else {
+    // Math! Thanks in part to Kyle Miller.
+    if(H < 2.09439) { // H < 2/3 PI
+      b = (1-S)/3;
+      r = (1+S*cos(H)/cos(1.047196667 - H))/3;
+      g = 1-r-b;
+    } else if(H < 4.188787) { // H < 4/3 PI
+      H = H - 2.09439;
+      r = (1-S)/3;
+      g = (1+S*cos(H)/cos(1.047196667 - H))/3;
+      b = 1-r-g;
+    } else {
+      H = H - 4.188787;
+      g = (1-S)/3;
+      b = (1+S*cos(H)/cos(1.047196667 - H))/3;
+      r = 1-g-b;
+    }
+    if (r < 0) r = 0; r = 3*I*r*255; if (r > 255) r = 255;
+    if (g < 0) g = 0; g = 3*I*g*255; if (g > 255) g = 255;
+    if (b < 0) b = 0; b = 3*I*b*255; if (b > 255) b = 255;
     
-  // Math! Thanks in part to Kyle Miller.
-  if(H < 2.09439) {
-    r = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
-    g = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
-    b = 255*I/3*(1-S);
-  } else if(H < 4.188787) {
-    H = H - 2.09439;
-    g = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
-    b = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
-    r = 255*I/3*(1-S);
-  } else {
-    H = H - 4.188787;
-    b = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
-    r = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
-    g = 255*I/3*(1-S);
+    rgb[0]=r;
+    rgb[1]=g;
+    rgb[2]=b;
   }
-  rgb[0]=r;
-  rgb[1]=g;
-  rgb[2]=b;
 }
 // RGB to HSI
 // Formulas on https://www.imageeprocessing.com/2013/05/converting-rgb-image-to-hsi.html
