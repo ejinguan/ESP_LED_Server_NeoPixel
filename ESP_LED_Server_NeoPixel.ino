@@ -41,6 +41,8 @@ unsigned long anim_last_frame = 0;  // Hold millis of last frame
 int   anim_direction = 1;           // 1 = left, 2 = right
 int   anim_speed = 5;               // 0-10
 int   anim_frame_count = 0;         // Frame counter for use
+float anim_state = 0;               // State to persist across calls
+float anim_velocity = 0;            // State to persist across calls
 bool  anim_fade = false;            // On/off for Fade
 bool  anim_wave = false;            // On/off for Wave             
 bool  anim_RGBwave = false;         // On/off for RGB Wave
@@ -257,6 +259,7 @@ void handleFade() {
   }
   if (anim_fade) {
     anim_frame_count = 0;
+    anim_state = 0;
   } else {
     setColor(led_rgb);
   }
@@ -271,20 +274,29 @@ void FadeFrame() {
   int green_value = led_colors[1];
   int blue_value  = led_colors[2];
 
+  // Calculate a target frame number that need to complete animation by
   int breakpoint = 2 * 1000 / anim_frame_ms / anim_speed;
-  int anim_frame = anim_frame_count % breakpoint;
 
-  if ((anim_frame_count / breakpoint) % 2 == 1) {
-    // increasing brightness
-    red_value   = (red_value * anim_frame) / breakpoint;
-    green_value = (green_value * anim_frame) / breakpoint;
-    blue_value  = (blue_value * anim_frame) / breakpoint;
-  } else {
-    // decreasing brightness
-    red_value   = red_value - (red_value * anim_frame) / breakpoint;
-    green_value = green_value - (green_value * anim_frame) / breakpoint;
-    blue_value  = blue_value - (blue_value * anim_frame) / breakpoint;
+  // Calculate slope from breakpoint
+  float slope = 1.0/breakpoint;  // in terms of frames
+  
+  float sign = anim_velocity>0 ? 1.0 : -1.0;
+  // d(Intensity) = slope * d(t)
+  anim_velocity = sign * slope * 1;  // dt of 1 frame
+  anim_state += anim_velocity;
+  
+  if (anim_state >= 1) {
+    anim_velocity *= -1;
+    anim_state = 1;
   }
+  if (anim_state <= 0) {
+    anim_velocity *= -1;
+    anim_state = 0;
+  }
+
+  red_value   = anim_state * red_value;
+  green_value = anim_state * green_value;
+  blue_value  = anim_state * blue_value;
   
   Serial.print(red_value);
   Serial.print(" "); 
@@ -323,6 +335,7 @@ void handleRGBWave() {
   }
   if (anim_RGBwave) {
     anim_frame_count = 0;
+    anim_state = 0;
   } else {
     setColor(led_rgb);
   }
