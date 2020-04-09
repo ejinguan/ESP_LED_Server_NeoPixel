@@ -8,23 +8,31 @@
 #include <ESP8266mDNS.h>
 #include <Adafruit_NeoPixel.h>
 
+#define hex_2_int(x) (((x)<='9') ?((x)-'0'): (((x)<='F') ?((x)-'A'+10):((x)-'a'+10)))
+
+// -------- WIFI -------------------------------
+// Get passwords.h
 #ifndef STASSID
 #include "passwords.h"
 #endif
 
+// Wifi connection credentials
 const char* ssid = STASSID;
 const char* password = STAPSK;
 
-String led_rgb = "110000";
-
+// Define ESP8266 Web Server
 ESP8266WebServer server(80);
 
-#define NUM_PIXELS 12
+// -------- LED --------------------------------
+// This is for maintaining current LED state
+String  led_rgb = "110000";
+int     led_colors[3];
+float   led_hsi[3];
+
+// Neopixel definition
+#define NUM_PIXELS 24
 #define PIN_NEOPIXEL 2
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(12, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
-
-
-
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 void handleHomePage () {
 
   String buf;
@@ -190,4 +198,80 @@ void setup(void) {
 void loop(void) {
   server.handleClient();
   MDNS.update();
+// From: http://blog.saikoled.com/post/43693602826/why-every-led-light-should-be-using-hsi
+//
+// Function example takes H, S, I, and a pointer to the 
+// returned RGB colorspace converted vector. It should
+// be initialized with:
+//
+// int rgb[3];
+//
+// in the calling function. After calling hsi2rgb
+// the vector rgb will contain red, green, and blue
+// calculated values.
+// H: 0-360 deg
+// S: 0-1
+// I: 0-1
+void hsi2rgb(float H, float S, float I, int* rgb) {
+  int r, g, b;
+  while(H < 0) {
+    H += 360; // Add to positive if H < 0
+  }
+  H = fmod(H,360); // cycle H around to 0-360 degrees
+  H = 3.14159*H/(float)180; // Convert to radians.
+  S = S>0?(S<1?S:1):0; // clamp S and I to interval [0,1]
+  I = I>0?(I<1?I:1):0;
+    
+  // Math! Thanks in part to Kyle Miller.
+  if(H < 2.09439) {
+    r = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+    g = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+    b = 255*I/3*(1-S);
+  } else if(H < 4.188787) {
+    H = H - 2.09439;
+    g = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+    b = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+    r = 255*I/3*(1-S);
+  } else {
+    H = H - 4.188787;
+    b = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+    r = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+    g = 255*I/3*(1-S);
+  }
+  rgb[0]=r;
+  rgb[1]=g;
+  rgb[2]=b;
+}
+// RGB to HSI
+// Formulas on https://www.imageeprocessing.com/2013/05/converting-rgb-image-to-hsi.html
+// Adapted from https://github.com/saikoLED/saiko5/blob/master/firmware/arduino-sketchbook/LightBrick_wip/SaikoColor.h
+// H: 0-360 deg
+// S: 0-1
+// I: 0-1
+void rgb2hsi(float R, float G, float B, float* hsi) {
+  float H;
+  float S;
+  float I;
+
+  float minv = R;
+  if (G < minv) minv = G;
+  if (B < minv) minv = B;
+
+  I = (R+G+B)/3.0;
+  S = 1 - minv/I;
+  if (S == 0.0) {
+    H = 0.0;
+  } else  {
+    H = ((R-G)+(R-B))/2.0;
+    H = H/sqrt((R-G)*(R-G) + (R-B)*(G-B));
+    H = acos(H);
+    if (B > G) {
+      H = 2.0*M_PI - H;
+    }
+    H = H/(2.0*M_PI) * 360;
+  }
+
+  hsi[0] = H;
+  hsi[1] = S;
+  hsi[2] = I/255.0;
 }
