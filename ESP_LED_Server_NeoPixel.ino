@@ -128,6 +128,9 @@ void handleNotFound() {
   if (my_url.startsWith("/LED")) {
     handleLED();
     
+  } else if (my_url.startsWith("/FADE")) {
+    handleFade();
+    
   } else if (my_url.startsWith("/RGBFADE")) {
     handleRGBFade();
 
