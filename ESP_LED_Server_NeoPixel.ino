@@ -45,7 +45,7 @@ int   anim_frame_count = 0;         // Frame counter for use
 float anim_state = 0;               // State to persist across calls
 float anim_velocity = 0;            // State to persist across calls
 bool  anim_fade = false;            // On/off for Fade
-bool  anim_wave = false;            // On/off for Wave             
+bool  anim_RGBfade = false;         // On/off for RGB fade             
 bool  anim_RGBwave = false;         // On/off for RGB Wave
 int   anim_brightness;              // not done yet
 
@@ -75,6 +75,7 @@ void handleHomePage () {
   buf = buf + "<div class=\"row\">HSI: H " + led_hsi[0] + " S " + led_hsi[1] + " I " + led_hsi[2] + "</div>";
   buf = buf + "<div class=\"row\">&nbsp;</div>";
   buf = buf + "<div class=\"row\">Fade: " + (anim_fade? "<b>On</b> | <a href=\"../fade/0\">Off</a>" : "<a href=\"../fade/1\">On</a> | <b>Off</b>") + "</div>";
+  buf = buf + "<div class=\"row\">RGB Fade: " + (anim_RGBfade? "<b>On</b> | <a href=\"../rgbfade/0\">Off</a>" : "<a href=\"../rgbfade/1\">On</a> | <b>Off</b>") + "</div>";
   buf = buf + "<div class=\"row\">RGB Wave: " + (anim_RGBwave? "<b>On</b> | <a href=\"../rgbwave/0\">Off</a>" : "<a href=\"../rgbwave/1\">On</a> | <b>Off</b>") + "</div>";
   buf = buf + "<div class=\"row\">Speed: ";
   for (int i = 0; i<=10; i++) {
@@ -127,8 +128,8 @@ void handleNotFound() {
   if (my_url.startsWith("/LED")) {
     handleLED();
     
-  } else if (my_url.startsWith("/FADE")) {
-    handleFade();
+  } else if (my_url.startsWith("/RGBFADE")) {
+    handleRGBFade();
 
   } else if (my_url.startsWith("/RGBWAVE")) {
     handleRGBWave();
@@ -210,6 +211,9 @@ void setColor(String rgb) {
 }
 
 
+// ---------------------------------------------
+// --- Handle animation speed ------------------
+// ---------------------------------------------
 void handleSpeed() {
 
   String my_url;
@@ -226,6 +230,9 @@ void handleSpeed() {
   
 }
 
+// ---------------------------------------------
+// --- Handle animation direction --------------
+// ---------------------------------------------
 void handleDirection() {
 
   String my_url;
@@ -244,7 +251,11 @@ void handleDirection() {
 
 
 
-// Fade in and out 
+
+// ---------------------------------------------
+// --- Handle fade animation on/off ------------
+// --- Fade in and out -------------------------
+// ---------------------------------------------
 void handleFade() {
 
   String my_url;
@@ -260,10 +271,6 @@ void handleFade() {
   }
   if (anim_fade) {
     anim_frame_count = 0;
-<<<<<<< HEAD
-=======
-    anim_state = 0;
->>>>>>> origin/master
     anim_state = 1; // Start from full brightness and fade down
   } else {
     setColor(led_rgb);
@@ -272,6 +279,10 @@ void handleFade() {
   // Cause a redirect back to /LED/
   handleRoot(); 
 }
+// ---------------------------------------------
+// --- Handle fade animation frame -------------
+// --- Fade in and out -------------------------
+// ---------------------------------------------
 void FadeFrame() {
   if (anim_speed==0) return;
   
@@ -315,16 +326,46 @@ void FadeFrame() {
   }
 }
 
-// Fade wave across the board
-void handleWave() {
 
+// ---------------------------------------------
+// --- Handle RGB fade animation on/off --------
+// --- Fade RGB across all hues  ---------------
+// ---------------------------------------------
+void handleRGBFade() {
+  String my_url;
+  my_url = server.uri();
+  my_url.toUpperCase();  
+  // url will look like "/rgbfade/xxxxxx"
+  String my_string = my_url.substring(9);
+
+  if (my_string.length() == 0) {
+    anim_RGBfade = !anim_fade;
+  } else {
+    anim_RGBfade = my_string.toInt();
+  }
+  if (anim_RGBfade) {
+    anim_frame_count = 0;
+    anim_state = 1; // Start from full brightness and fade down
+  } else {
+    setColor(led_rgb);
+  }
+  
+  // Cause a redirect back to /LED/
+  handleRoot(); 
+}
+// ---------------------------------------------
+// --- Handle RGB fade animation frame ---------
+// --- Fade RGB across all hues  ---------------
+// ---------------------------------------------
+void RGBFadeFrame() {
   
 }
-void WaveFrame() {
-  
-}
 
-// RGB wave across the board
+
+// ---------------------------------------------
+// --- Handle RGB wave animation on/off --------
+// --- RGB Wave across the strip ---------------
+// ---------------------------------------------
 void handleRGBWave() {
 
   String my_url;
@@ -349,6 +390,10 @@ void handleRGBWave() {
   handleRoot(); 
   
 }
+// ---------------------------------------------
+// --- Handle RGB wave animation frame ---------
+// --- RGB Wave across the strip ---------------
+// ---------------------------------------------
 void RGBWaveFrame() {
   if (anim_speed==0) return;
 
@@ -391,6 +436,9 @@ void RGBWaveFrame() {
 }
 
 
+// ---------------------------------------------
+// --- Handle arduino setup and loop -----------
+// ---------------------------------------------
 void setup(void) {
   // Set Neopixel pin as output
   pinMode(PIN_NEOPIXEL, OUTPUT);
@@ -465,8 +513,8 @@ void loop(void) {
     if (anim_fade) {
       FadeFrame();
     }
-    if (anim_wave) {
-      WaveFrame();
+    if (anim_RGBfade) {
+      RGBFadeFrame();
     }
     if (anim_RGBwave) {
       RGBWaveFrame();
