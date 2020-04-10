@@ -260,7 +260,7 @@ void handleFade() {
   }
   if (anim_fade) {
     anim_frame_count = 0;
-    anim_state = 0;
+    anim_state = 1; // Start from full brightness and fade down
   } else {
     setColor(led_rgb);
   }
@@ -353,24 +353,35 @@ void RGBWaveFrame() {
 
   uint16_t hue_increment = 360 / NUM_PIXELS;
 
+  // Calculate a target frame number that need to complete animation by
   int breakpoint = 2 * 1000 / anim_frame_ms / anim_speed;
-  int anim_frame = anim_frame_count % breakpoint;
-  
 
+  // Calculate phase shift from breakpoint
+  float phase_increment = 360.0/breakpoint;  // in terms of frames
+
+  float sign        = (anim_direction==1 || anim_direction==4) ? 1.0 : -1.0;
+  float orientation = (anim_direction<=2) ? 1.0 : -1.0;
+  // d(phaseangle)  = phase_increment * d(t)
+  anim_velocity     = sign * phase_increment * 1;  // dt of 1 frame
+  anim_state        += anim_velocity;
+
+  // Round off to within 360 - to persist across calls
+  while (anim_state <   0) anim_state += 360;
+  while (anim_state > 360) anim_state -= 360;
+  
   for(uint16_t i=0; i < NUM_PIXELS; i++) {
     // Add hue increment to each LED
-
-    
-    hsi2rgb(led_hsi[0] + (anim_direction%2 == 1?-1:1) * i*hue_increment                    // 1,2 directions -1, 3,4 directions 1
-                       + (anim_direction <= 2?-1:1) * (360.0 * anim_frame/breakpoint), // odd directions -1, even directions 1
+    // Convert HSI to RGB and set corresponding LED
+    hsi2rgb(led_hsi[0] + orientation * i * hue_increment // 1,2 directions 1, 3,4 directions -1
+                       + anim_state,                     // odd directions -1, even directions 1
             led_hsi[1], 
             led_hsi[2], 
             led_temp);
     
     strip.setPixelColor(i, strip.Color(led_temp[0], led_temp[1], led_temp[2]));
     //delay(50);
-    strip.show();
   }
+  strip.show();
 
   
 }
