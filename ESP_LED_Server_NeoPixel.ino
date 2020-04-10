@@ -260,6 +260,10 @@ void handleFade() {
   }
   if (anim_fade) {
     anim_frame_count = 0;
+<<<<<<< HEAD
+=======
+    anim_state = 0;
+>>>>>>> origin/master
     anim_state = 1; // Start from full brightness and fade down
   } else {
     setColor(led_rgb);
