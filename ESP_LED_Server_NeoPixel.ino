@@ -42,12 +42,15 @@ unsigned long anim_last_frame = 0;  // Hold millis of last frame
 int   anim_direction = 1;           // 1 = left, 2 = right
 int   anim_speed = 5;               // 0-10
 int   anim_frame_count = 0;         // Frame counter for use
-float anim_state = 0;               // State to persist across calls
-float anim_velocity = 0;            // State to persist across calls
+float anim_velocity = 0;            // Speed of animation increments
+
+// Animations internal state
+float anim_brightness = 0;          // State to persist across calls
+float anim_phaseshift = 0;          // State of current phase angle to persist across calls
+
 bool  anim_fade = false;            // On/off for Fade
 bool  anim_RGBfade = false;         // On/off for RGB fade             
 bool  anim_RGBwave = false;         // On/off for RGB Wave
-int   anim_brightness;              // not done yet
 
 
 // ---------------------------------------------
@@ -274,7 +277,7 @@ void handleFade() {
   }
   if (anim_fade) {
     anim_frame_count = 0;
-    anim_state = 1; // Start from full brightness and fade down
+    anim_brightness = 1; // Start from full brightness and fade down
   } else {
     setColor(led_rgb);
   }
@@ -302,20 +305,20 @@ void FadeFrame() {
   float sign = anim_velocity>0 ? 1.0 : -1.0;
   // d(Intensity) = slope * d(t)
   anim_velocity = sign * slope * 1;  // dt of 1 frame
-  anim_state += anim_velocity;
+  anim_brightness += anim_velocity;
   
-  if (anim_state >= 1) {
+  if (anim_brightness >= 1) {
     anim_velocity *= -1;
-    anim_state = 1;
+    anim_brightness = 1;
   }
-  if (anim_state <= 0) {
+  if (anim_brightness <= 0) {
     anim_velocity *= -1;
-    anim_state = 0;
+    anim_brightness = 0;
   }
 
-  red_value   = anim_state * red_value;
-  green_value = anim_state * green_value;
-  blue_value  = anim_state * blue_value;
+  red_value   = anim_brightness * red_value;
+  green_value = anim_brightness * green_value;
+  blue_value  = anim_brightness * blue_value;
   
   Serial.print(red_value);
   Serial.print(" "); 
@@ -348,7 +351,8 @@ void handleRGBFade() {
   }
   if (anim_RGBfade) {
     anim_frame_count = 0;
-    anim_state = 1; // Start from full brightness and fade down
+    anim_brightness = 1; // Start from full brightness and fade down
+    anim_phaseshift = 0; // Start from zero colour phase shift
   } else {
     setColor(led_rgb);
   }
@@ -361,7 +365,51 @@ void handleRGBFade() {
 // --- Fade RGB across all hues  ---------------
 // ---------------------------------------------
 void RGBFadeFrame() {
+  if (anim_speed==0) return;
+
+  int red_value   = led_colors[0];
+  int green_value = led_colors[1];
+  int blue_value  = led_colors[2];
+  int rgb[3];
+
+  // Calculate a target frame number that need to complete animation by
+  int breakpoint = 2 * 1000 / anim_frame_ms / anim_speed;
+
+  // Calculate slope from breakpoint
+  float slope = 1.0/breakpoint;  // in terms of frames
   
+  float sign = anim_velocity>0 ? 1.0 : -1.0;
+  // d(Intensity) = slope * d(t)
+  anim_velocity = sign * slope * 1;  // dt of 1 frame
+  anim_brightness += anim_velocity;
+  
+  if (anim_brightness >= 1) {
+    anim_velocity *= -1;
+    anim_brightness = 1;
+  }
+  if (anim_brightness <= 0) {
+    anim_velocity *= -1;
+    anim_brightness = 0;
+    anim_phaseshift += 60;
+  }
+
+  // Calculate the phase shifted colours
+  hsi2rgb(led_hsi[0] + anim_phaseshift, led_hsi[1], led_hsi[2], rgb);
+
+  red_value   = anim_brightness * rgb[0];
+  green_value = anim_brightness * rgb[1];
+  blue_value  = anim_brightness * rgb[2];
+  
+  Serial.print(red_value);
+  Serial.print(" "); 
+  Serial.print(green_value); 
+  Serial.print(" ");
+  Serial.println(blue_value);
+  
+  for(uint16_t i=0; i< strip.numPixels(); i++) {
+    strip.setPixelColor(i, strip.Color(red_value, green_value, blue_value));
+    strip.show();
+  }
 }
 
 
@@ -384,7 +432,7 @@ void handleRGBWave() {
   }
   if (anim_RGBwave) {
     anim_frame_count = 0;
-    anim_state = 0;
+    anim_phaseshift = 0;
   } else {
     setColor(led_rgb);
   }
@@ -415,17 +463,17 @@ void RGBWaveFrame() {
   float orientation = (anim_direction<=2) ? 1.0 : -1.0;
   // d(phaseangle)  = phase_increment * d(t)
   anim_velocity     = sign * phase_increment * 1;  // dt of 1 frame
-  anim_state        += anim_velocity;
+  anim_phaseshift   += anim_velocity;
 
   // Round off to within 360 - to persist across calls
-  while (anim_state <   0) anim_state += 360;
-  while (anim_state > 360) anim_state -= 360;
+  while (anim_phaseshift <   0) anim_phaseshift += 360;
+  while (anim_phaseshift > 360) anim_phaseshift -= 360;
   
   for(uint16_t i=0; i < NUM_PIXELS; i++) {
     // Add hue increment to each LED
     // Convert HSI to RGB and set corresponding LED
     hsi2rgb(led_hsi[0] + orientation * i * hue_increment // 1,2 directions 1, 3,4 directions -1
-                       + anim_state,                     // odd directions -1, even directions 1
+                       + anim_phaseshift,                // odd directions -1, even directions 1
             led_hsi[1], 
             led_hsi[2], 
             led_temp);
