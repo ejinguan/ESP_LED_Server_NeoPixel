@@ -69,18 +69,19 @@ void handleHomePage () {
   buf = buf + "<link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css\">"; // 3.3.6
   buf = buf + "<script src=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js\"></script>";
   buf = buf + "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.0.4/jscolor.min.js\"></script>";
+  buf = buf + "<style>a{border:1px solid #336699;border-radius:3px;line-height:40px;padding:0.5em;background:white;color:#336699;}a:hover{color:white;background:#336699;}span.title{font-weight:bold;min-width:80px;display:inline-block;line-height:40px;}b{border:1px solid #336699;border-radius:3px;line-height:40px;padding:0.5em;color:white;background:#336699;}</style>";
   buf = buf + "</head><body><div class=\"container\"><div class=\"row\"><h1>ESP Color Picker</h1>";
   buf = buf + "<div class=\"input-group\">";
   buf = buf + "<a type=\"submit\" id=\"change_color\" type=\"button\" class=\"btn btn-primary input-group-addon\">Change Color</a>";
   buf = buf + "<input class=\"form-control jscolor {onFineChange:'update(this)'} form-control\" id=\"rgb\" value=\"" + led_rgb + "\"></div></div>";
   buf = buf + "<script>function update(picker) {document.getElementById('rgb').innerHTML = Math.round(picker.rgb[0]) + ', ' +  Math.round(picker.rgb[1]) + ', ' + Math.round(picker.rgb[2]);";
   buf = buf + "document.getElementById(\"change_color\").href=document.getElementById('rgb').value;}</script>";
-  buf = buf + "<div class=\"row\">HSI: H " + led_hsi[0] + " S " + led_hsi[1] + " I " + led_hsi[2] + "</div>";
+  buf = buf + "<div class=\"row\"><span class=\"title\">HSI:</span> H " + led_hsi[0] + " S " + led_hsi[1] + " I " + led_hsi[2] + "</div>";
   buf = buf + "<div class=\"row\">&nbsp;</div>";
-  buf = buf + "<div class=\"row\">Fade: " + (anim_fade? "<b>On</b> | <a href=\"../fade/0\">Off</a>" : "<a href=\"../fade/1\">On</a> | <b>Off</b>") + "</div>";
-  buf = buf + "<div class=\"row\">RGB Fade: " + (anim_RGBfade? "<b>On</b> | <a href=\"../rgbfade/0\">Off</a>" : "<a href=\"../rgbfade/1\">On</a> | <b>Off</b>") + "</div>";
-  buf = buf + "<div class=\"row\">RGB Wave: " + (anim_RGBwave? "<b>On</b> | <a href=\"../rgbwave/0\">Off</a>" : "<a href=\"../rgbwave/1\">On</a> | <b>Off</b>") + "</div>";
-  buf = buf + "<div class=\"row\">Speed: ";
+  buf = buf + "<div class=\"row\"><span class=\"title\">Fade:</span> " + (anim_fade? "<b>On</b> | <a href=\"../fade/0\">Off</a>" : "<a href=\"../fade/1\">On</a> | <b>Off</b>") + "</div>";
+  buf = buf + "<div class=\"row\"><span class=\"title\">RGB Fade:</span> " + (anim_RGBfade? "<b>On</b> | <a href=\"../rgbfade/0\">Off</a>" : "<a href=\"../rgbfade/1\">On</a> | <b>Off</b>") + "</div>";
+  buf = buf + "<div class=\"row\"><span class=\"title\">RGB Wave:</span> " + (anim_RGBwave? "<b>On</b> | <a href=\"../rgbwave/0\">Off</a>" : "<a href=\"../rgbwave/1\">On</a> | <b>Off</b>") + "</div>";
+  buf = buf + "<div class=\"row\"><span class=\"title\">Speed:</span> ";
   for (int i = 0; i<=10; i++) {
     if (i==anim_speed){
       buf = buf + "<b>" + i + "</b> ";
@@ -89,7 +90,7 @@ void handleHomePage () {
     }
   }
   buf = buf + "</div>";
-  buf = buf + "<div class=\"row\">Direction: ";
+  buf = buf + "<div class=\"row\"><span class=\"title\">Direction:</span> ";
   for (int i = 1; i<=4; i++) {
     if (i==anim_direction){
       buf = buf + "<b>" + i + "</b> ";
@@ -99,7 +100,7 @@ void handleHomePage () {
   }
   buf = buf + "</div>";
   buf = buf + "<div class=\"row\">";
-  buf = buf +   "Anim_Frame_Count: " + anim_frame_count;
+  buf = buf +   "<span class=\"title\">Anim_Frame_Count:</span> " + anim_frame_count;
   buf = buf + "</div>";
   buf = buf + "</div></body></html>";
   
