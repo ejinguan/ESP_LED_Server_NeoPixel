@@ -37,7 +37,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + 
 
 // -------- LED --------------------------------
 // -------- LED Animations ---------------------
-#define anim_frame_ms 2
+#define anim_frame_ms 1
 unsigned long anim_last_frame = 0;  // Hold millis of last frame
 int   anim_direction = 1;           // 1 = left, 2 = right
 int   anim_speed = 5;               // 0-10
@@ -46,11 +46,14 @@ float anim_velocity = 0;            // Speed of animation increments
 
 // Animations internal state
 float anim_brightness = 0;          // State to persist across calls
-float anim_phaseshift = 0;          // State of current phase angle to persist across calls
+float anim_phaseshift = 0;          // State of current colour phase angle to persist across calls
+float anim_position = 0;            // State of animation position in the strip
 
 bool  anim_fade = false;            // On/off for Fade
 bool  anim_RGBfade = false;         // On/off for RGB fade             
 bool  anim_RGBwave = false;         // On/off for RGB Wave
+bool  anim_bounce = false;          // On/off for RGB Bounce
+bool  anim_RGBbounce = true;        // On/off for RGB Bounce
 
 
 // ---------------------------------------------
@@ -81,6 +84,7 @@ void handleHomePage () {
   buf = buf + "<div class=\"row\"><span class=\"title\">Fade:</span> " + (anim_fade? "<b>On</b> | <a href=\"../fade/0\">Off</a>" : "<a href=\"../fade/1\">On</a> | <b>Off</b>") + "</div>";
   buf = buf + "<div class=\"row\"><span class=\"title\">RGB Fade:</span> " + (anim_RGBfade? "<b>On</b> | <a href=\"../rgbfade/0\">Off</a>" : "<a href=\"../rgbfade/1\">On</a> | <b>Off</b>") + "</div>";
   buf = buf + "<div class=\"row\"><span class=\"title\">RGB Wave:</span> " + (anim_RGBwave? "<b>On</b> | <a href=\"../rgbwave/0\">Off</a>" : "<a href=\"../rgbwave/1\">On</a> | <b>Off</b>") + "</div>";
+  buf = buf + "<div class=\"row\"><span class=\"title\">RGB Bounce:</span> " + (anim_RGBbounce? "<b>On</b> | <a href=\"../rgbbounce/0\">Off</a>" : "<a href=\"../rgbbounce/1\">On</a> | <b>Off</b>") + "</div>";
   buf = buf + "<div class=\"row\"><span class=\"title\">Speed:</span> ";
   for (int i = 0; i<=10; i++) {
     if (i==anim_speed){
@@ -140,6 +144,9 @@ void handleNotFound() {
 
   } else if (my_url.startsWith("/RGBWAVE")) {
     handleRGBWave();
+
+  } else if (my_url.startsWith("/RGBBOUNCE")) {
+    handleRGBBounce();
 
   } else if (my_url.startsWith("/SPEED")) {
     handleSpeed();
@@ -489,6 +496,105 @@ void RGBWaveFrame() {
 
 
 // ---------------------------------------------
+// --- Handle RGB bounce on/off ----------------
+// --- RGB bounce from left to right -----------
+// ---------------------------------------------
+void handleRGBBounce() {
+
+  String my_url;
+  my_url = server.uri();
+  my_url.toUpperCase();  
+  // url will look like "/rgbbounce/xxxxxx"
+  String my_string = my_url.substring(11);
+
+  if (my_string.length() == 0) {
+    anim_RGBbounce= !anim_RGBbounce;
+  } else {
+    anim_RGBbounce = my_string.toInt();
+  }
+  if (anim_RGBbounce) {
+    anim_frame_count = 0;
+    anim_phaseshift = 0; // Start from zero colour phase shift
+  } else {
+    setColor(led_rgb);
+  }
+  
+  // Cause a redirect back to /LED/
+  handleRoot(); 
+  
+}
+// ---------------------------------------------
+// --- Handle RGB bounce animation frame -------
+// --- RGB bounce from left to right -----------
+// ---------------------------------------------
+void RGBBounceFrame() {
+  if (anim_speed==0) return;
+
+  int red_value   = led_colors[0];
+  int green_value = led_colors[1];
+  int blue_value  = led_colors[2];
+  int rgb[3];
+
+  // Calculate a target frame number that need to complete animation by
+  int breakpoint = 2 * 1000 / anim_frame_ms / anim_speed;
+
+  // Calculate animation position from breakpoint
+  float change = 1.0/breakpoint;  // in terms of frames
+
+  float sign = anim_velocity>0 ? 1.0 : -1.0;
+  // d(Intensity) = slope * d(t)
+  anim_velocity = sign * change * 1;  // dt of 1 frame
+  anim_position += anim_velocity;
+  
+  if (anim_position >= 1) {
+    anim_velocity *= -1;
+    anim_position= 1;
+    anim_phaseshift += 30;
+  }
+  if (anim_position <= 0) {
+    anim_velocity *= -1;
+    anim_position = 0;
+    anim_phaseshift += 30;
+  }
+
+  // Round off to within 360 - to persist across calls
+  while (anim_phaseshift <   0) anim_phaseshift += 360;
+  while (anim_phaseshift > 360) anim_phaseshift -= 360;
+
+  // Calculate the phase shifted colours
+  hsi2rgb(led_hsi[0] + anim_phaseshift, led_hsi[1], led_hsi[2], rgb);
+
+  red_value   = rgb[0];
+  green_value = rgb[1];
+  blue_value  = rgb[2];
+
+  for(uint16_t i=0; i < NUM_PIXELS; i++) {
+    // Spread is 2 pixels away
+    float spread = 2.0 * NUM_PIXELS/24;
+    // Calculate amount of brightness to subtract
+    float neg_brightness = ((float)i - (float)NUM_PIXELS*anim_position)/spread;
+    // Invert brightness if less than 1. ABS don't work for FLOAT, gives INT.
+    if (neg_brightness < 0) neg_brightness *= -1;
+    float tmp_brightness = 1.0 - neg_brightness;
+    if (tmp_brightness < 0) tmp_brightness = 0;
+    if (i < NUM_PIXELS-1) {
+      Serial.print(tmp_brightness);
+      Serial.print(" ");
+    } else {
+      Serial.println(tmp_brightness);
+    }
+    
+    strip.setPixelColor(i, strip.Color(tmp_brightness * red_value, tmp_brightness * green_value, tmp_brightness * blue_value));
+    //delay(50);
+  }
+  strip.show();
+ 
+}
+
+
+
+
+// ---------------------------------------------
 // --- Handle arduino setup and loop -----------
 // ---------------------------------------------
 void setup(void) {
@@ -570,6 +676,9 @@ void loop(void) {
     }
     if (anim_RGBwave) {
       RGBWaveFrame();
+    }
+    if (anim_RGBbounce) {
+      RGBBounceFrame();
     }
 
     anim_last_frame = millis();
